@@ -25,7 +25,7 @@ CREATE TABLE user_languages (
 );
 
 -- Table des touristes (informations spécifiques)
-CREATE TABLE tourists (
+CREATE TABLE tourists (4
   id VARCHAR(36) PRIMARY KEY,
   user_id VARCHAR(36) UNIQUE NOT NULL,
   country VARCHAR(100) NOT NULL,
