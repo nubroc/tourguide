@@ -3,6 +3,7 @@ import Home from '../views/Home.vue'
 import Explorer from '../views/Explorer.vue'
 import Login from '../views/Login.vue'
 import Signup from '../views/Signup.vue'
+import Dashboard from '../views/Dashboard.vue'
 
 const routes = [
   {
@@ -24,6 +25,11 @@ const routes = [
     path: '/signup',
     name: 'Signup',
     component: Signup
+  },
+  {
+    path: '/dashboard',
+    name: 'Dashboard',
+    component: Dashboard
   },
   // Redirection pour les routes non trouvées
   {

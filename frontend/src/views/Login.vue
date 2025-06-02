@@ -74,8 +74,33 @@ export default {
   methods: {
     handleLogin() {
       console.log('Données de connexion:', this.loginData);
-      // Ici vous ajouterez l'appel API pour la connexion
-      alert('Connexion réussie !');
+      
+      // Vérifier si un utilisateur avec cet email existe
+      const userData = localStorage.getItem('user');
+      if (userData) {
+        const user = JSON.parse(userData);
+        
+        // Vérifier les identifiants
+        if (user.email === this.loginData.email && user.password === this.loginData.password) {
+          // Connexion réussie
+          console.log('Connexion réussie !');
+          
+          // Optionnel : gérer "Se souvenir de moi"
+          if (this.loginData.rememberMe) {
+            localStorage.setItem('rememberMe', 'true');
+          }
+          
+          // Rediriger vers le dashboard
+          this.$router.push('/dashboard');
+        } else {
+          // Identifiants incorrects
+          alert('Email ou mot de passe incorrect');
+        }
+      } else {
+        // Aucun utilisateur trouvé
+        alert('Aucun compte trouvé avec cet email. Veuillez vous inscrire.');
+        this.$router.push('/signup');
+      }
     }
   }
 }
