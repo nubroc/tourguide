@@ -592,60 +592,89 @@ export default {
       this.editingOfferId = null
     },
     
-    // ✅ CORRECTION - submitOffer
+    // ✅ CORRECTION - Gestion de l'upload de photo
+    async uploadPhoto() {
+      if (!this.photoFile) return null;
+      
+      return new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          // Stocker l'image en base64 dans localStorage
+          const imageData = e.target.result;
+          
+          // Optionnel: Compresser l'image si elle est trop grosse
+          const img = new Image();
+          img.onload = () => {
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            
+            // Redimensionner si nécessaire (max 800px)
+            const maxWidth = 800;
+            const maxHeight = 600;
+            let { width, height } = img;
+            
+            if (width > maxWidth || height > maxHeight) {
+              const ratio = Math.min(maxWidth / width, maxHeight / height);
+              width *= ratio;
+              height *= ratio;
+            }
+            
+            canvas.width = width;
+            canvas.height = height;
+            ctx.drawImage(img, 0, 0, width, height);
+            
+            // Convertir en base64 avec compression
+            const compressedImage = canvas.toDataURL('image/jpeg', 0.8);
+            resolve(compressedImage);
+          };
+          img.src = imageData;
+        };
+        reader.readAsDataURL(this.photoFile);
+      });
+    },
+    
+    // ✅ CORRECTION - submitOffer avec gestion photo
     async submitOffer() {
-      if (!this.isFormValid) return
+      if (!this.isFormValid) return;
       
       try {
-        this.submitting = true
-        this.formError = null
-        
-        console.log('Données du formulaire:', this.offerForm)
+        this.submitting = true;
+        this.formError = null;
         
         // Upload de la photo si nécessaire
         if (this.photoFile) {
-          const photoUrl = await this.uploadPhoto()
-          this.offerForm.photo_url = photoUrl
+          console.log('Upload de la photo...');
+          const photoUrl = await this.uploadPhoto();
+          this.offerForm.photo_url = photoUrl;
         }
         
-        let response
+        let response;
         if (this.isEditing) {
-          console.log('Modification offre:', this.editingOfferId)
-          response = await apiServices.updateOffer(this.editingOfferId, this.offerForm)
+          console.log('Modification offre:', this.editingOfferId);
+          response = await apiServices.updateOffer(this.editingOfferId, this.offerForm);
         } else {
-          console.log('Création nouvelle offre')
-          response = await apiServices.createOffer(this.offerForm)
+          console.log('Création nouvelle offre');
+          response = await apiServices.createOffer(this.offerForm);
         }
         
-        console.log('Response submitOffer:', response)
+        console.log('Response submitOffer:', response);
         
         if (response.success) {
-          this.closeModal()
-          this.loadOffers() // Recharger la liste
+          this.closeModal();
+          await this.loadOffers(); // Recharger la liste
           
           // Notification de succès
-          alert(this.isEditing ? 'Offre modifiée avec succès' : 'Offre créée avec succès')
+          alert(this.isEditing ? 'Offre modifiée avec succès!' : 'Offre créée avec succès!');
         } else {
-          this.formError = response.message || 'Erreur lors de la sauvegarde'
+          this.formError = response.message || 'Erreur lors de la sauvegarde';
         }
         
       } catch (error) {
-        console.error('Erreur soumission offre:', error)
-        this.formError = error.response?.data?.message || 'Erreur lors de la sauvegarde'
+        console.error('Erreur soumission offre:', error);
+        this.formError = 'Erreur lors de la sauvegarde. Veuillez réessayer.';
       } finally {
-        this.submitting = false
+        this.submitting = false;
       }
-    },
-    
-    async uploadPhoto() {
-      // Simulation d'upload - à remplacer par votre service d'upload
-      return new Promise((resolve) => {
-        const reader = new FileReader()
-        reader.onload = (e) => {
-          resolve(e.target.result)
-        }
-        reader.readAsDataURL(this.photoFile)
-      })
     },
     
     handlePhotoUpload(event) {

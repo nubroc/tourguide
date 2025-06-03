@@ -1,15 +1,10 @@
 import express from 'express'
 import cors from 'cors'
 import helmet from 'helmet'
-import rateLimit from 'express-rate-limit'
 import dotenv from 'dotenv'
 
 // Import des routes
 import authRoutes from './routes/auth.js'
-import sessionRoutes from './routes/sessions.js'
-import offerRoutes from './routes/offers.js'
-import likesRoutes from './routes/likes.js'
-import guideRoutes from './routes/guide-offers.js'
 
 dotenv.config()
 
@@ -23,27 +18,16 @@ app.use(cors({
   credentials: true
 }))
 
-// Rate limiting
-const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100 // limite de 100 requêtes par fenêtre de temps
-})
-app.use(limiter)
-
 // Parsing
-app.use(express.json({ limit: '10mb' }))
+app.use(express.json())
 app.use(express.urlencoded({ extended: true }))
 
 // Routes
 app.use('/api/auth', authRoutes)
-app.use('/api/sessions', sessionRoutes)
-app.use('/api/offers', offerRoutes)        // ✅ Système principal
-app.use('/api', likesRoutes)               // ✅ Routes likes
-app.use('/api/guide', guideRoutes)         // ✅ Routes guide
 
 // Route de test
 app.get('/api/health', (req, res) => {
-  res.json({ status: 'OK', message: 'TourGuide API is running with MySQL' })
+  res.json({ status: 'OK', message: 'TourGuide API is running' })
 })
 
 // Gestion des erreurs 404

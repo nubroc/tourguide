@@ -282,21 +282,6 @@
           Suivant →
         </button>
       </div>
-
-      <!-- Section de test (à garder temporairement) -->
-      <div class="connection-test">
-        <h2>🔧 Test de connexion</h2>
-        <div class="test-actions">
-          <button @click="testConnection" class="btn btn-outline">Test Santé API</button>
-          <button @click="testActivitiesOld" class="btn btn-outline">Test Anciennes Activités</button>
-          <button @click="testOffersNew" class="btn btn-primary">Test Nouvelles Offres</button>
-        </div>
-
-        <div v-if="testResult" class="test-result" :class="testResult.type">
-          <h4>{{ testResult.title }}</h4>
-          <pre>{{ testResult.message }}</pre>
-        </div>
-      </div>
     </div>
   </div>
 </template>
@@ -346,9 +331,6 @@ export default {
         totalPages: 0
       },
       
-      // Test (temporaire)
-      testResult: null,
-      
       // Langues disponibles
       availableLanguages: [
         { code: 'fr', name: 'Français', flag: '🇫🇷' },
@@ -395,7 +377,6 @@ export default {
     this.loadUserData()
     this.loadOffers()
     this.loadAvailableCities()
-    this.testConnection()
   },
   
   methods: {
@@ -443,11 +424,6 @@ export default {
       } catch (error) {
         console.error('Erreur chargement offres:', error)
         this.error = 'Erreur lors du chargement des offres'
-        this.testResult = {
-          type: 'error',
-          title: 'Erreur API Offres',
-          message: error.response?.data?.message || error.message
-        }
       } finally {
         this.loading = false
       }
@@ -618,58 +594,6 @@ export default {
     getLanguageFlag(code) {
       const lang = this.availableLanguages.find(l => l.code === code)
       return lang ? lang.flag : code
-    },
-    
-    // Tests (temporaires)
-    async testConnection() {
-      try {
-        const response = await apiServices.health()
-        this.testResult = {
-          type: 'success',
-          title: 'Connexion API OK',
-          message: JSON.stringify(response.data, null, 2)
-        }
-      } catch (error) {
-        this.testResult = {
-          type: 'error',
-          title: 'Erreur connexion API',
-          message: error.message
-        }
-      }
-    },
-    
-    async testActivitiesOld() {
-      try {
-        const response = await apiServices.getActivities()
-        this.testResult = {
-          type: 'success',
-          title: 'Anciennes activités',
-          message: JSON.stringify(response.data, null, 2)
-        }
-      } catch (error) {
-        this.testResult = {
-          type: 'error',
-          title: 'Erreur anciennes activités',
-          message: error.message
-        }
-      }
-    },
-    
-    async testOffersNew() {
-      try {
-        const response = await apiServices.getOffers({ limit: 5 })
-        this.testResult = {
-          type: 'success',
-          title: 'Nouvelles offres',
-          message: JSON.stringify(response.data, null, 2)
-        }
-      } catch (error) {
-        this.testResult = {
-          type: 'error',
-          title: 'Erreur nouvelles offres',
-          message: error.response?.data?.message || error.message
-        }
-      }
     }
   }
 }
@@ -1276,56 +1200,6 @@ export default {
   border-color: var(--primary-color);
 }
 
-/* Section de test (temporaire) */
-.connection-test {
-  margin-top: var(--spacing-xxl);
-  padding: var(--spacing-lg);
-  background: white;
-  border-radius: var(--border-radius-large);
-  box-shadow: var(--shadow-light);
-  border-left: 4px solid var(--warning-color);
-}
-
-.test-actions {
-  display: flex;
-  gap: var(--spacing-md);
-  margin-bottom: var(--spacing-lg);
-  flex-wrap: wrap;
-}
-
-.test-result {
-  padding: var(--spacing-md);
-  border-radius: var(--border-radius);
-  margin-top: var(--spacing-md);
-}
-
-.test-result.success {
-  background-color: #d4edda;
-  border: 1px solid #c3e6cb;
-  color: #155724;
-}
-
-.test-result.error {
-  background-color: #f8d7da;
-  border: 1px solid #f5c6cb;
-  color: #721c24;
-}
-
-.test-result h4 {
-  margin: 0 0 var(--spacing-sm) 0;
-  font-size: 1rem;
-}
-
-.test-result pre {
-  margin: 0;
-  white-space: pre-wrap;
-  font-size: 0.8rem;
-  overflow-x: auto;
-  background: rgba(0, 0, 0, 0.05);
-  padding: var(--spacing-sm);
-  border-radius: var(--border-radius-small);
-}
-
 /* Responsive */
 @media (max-width: 768px) {
   .container {
@@ -1356,10 +1230,6 @@ export default {
   
   .pagination {
     flex-wrap: wrap;
-  }
-  
-  .test-actions {
-    flex-direction: column;
   }
 }
 

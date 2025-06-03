@@ -9,7 +9,15 @@ const router = express.Router()
 // Inscription
 router.post('/register', async (req, res) => {
   try {
-    const { email, password, fullName, role, languages } = req.body
+    const { email, password, fullName, role } = req.body
+
+    // Validation basique
+    if (!email || !password || !fullName || !role) {
+      return res.status(400).json({
+        success: false,
+        message: 'Tous les champs sont requis'
+      })
+    }
 
     // Vérifier si l'utilisateur existe
     const [existing] = await pool.execute(
@@ -33,16 +41,6 @@ router.post('/register', async (req, res) => {
       'INSERT INTO users (id, email, password_hash, full_name, role) VALUES (?, ?, ?, ?, ?)',
       [userId, email, passwordHash, fullName, role]
     )
-
-    // Ajouter les langues
-    if (languages && languages.length > 0) {
-      for (const lang of languages) {
-        await pool.execute(
-          'INSERT INTO user_languages (id, user_id, language_code) VALUES (?, ?, ?)',
-          [uuidv4(), userId, lang]
-        )
-      }
-    }
 
     // Générer le token JWT
     const token = jwt.sign(
@@ -78,6 +76,14 @@ router.post('/register', async (req, res) => {
 router.post('/login', async (req, res) => {
   try {
     const { email, password } = req.body
+
+    // Validation basique
+    if (!email || !password) {
+      return res.status(400).json({
+        success: false,
+        message: 'Email et mot de passe requis'
+      })
+    }
 
     // Chercher l'utilisateur
     const [users] = await pool.execute(
