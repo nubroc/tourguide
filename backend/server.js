@@ -47,6 +47,7 @@ app.use((error, req, res, next) => {
   })
 })
 
+// Démarrage du serveur
 app.listen(PORT, () => {
   console.log(`🚀 Serveur TourGuide démarré sur le port ${PORT}`)
   console.log(`📍 API disponible sur http://localhost:${PORT}/api`)

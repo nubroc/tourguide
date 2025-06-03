@@ -71,17 +71,6 @@ export const apiServices = {
   // Test de connexion
   testConnection: () => api.get('/health'),
 
-  // ✅ Système d'offres
-  getOffers: (params = {}) => api.get('/offers', { params }),
-  getOffer: (id) => api.get(`/offers/${id}`),
-  
-  // Système de likes
-  toggleLike: (offerId) => api.post(`/${offerId}/like`),
-  getLikedOffers: (params = {}) => api.get('/users/liked-offers', { params }),
-
-  // ✅ CORRECTION: Route guide corrigée
-  getMyOffers: (params = {}) => api.get('/guide/offres', { params }),
-
   // Authentification
   register: (userData) => api.post('/auth/register', userData),
   login: (credentials) => api.post('/auth/login', credentials),
@@ -95,188 +84,9 @@ export const apiServices = {
     })
   },
 
-  // ✅ Méthode pour récupérer les offres d'un guide (localStorage)
-  getGuideOffers: (params = {}) => {
-    return new Promise((resolve) => {
-      try {
-        const user = JSON.parse(localStorage.getItem('user') || '{}');
-        const allOffers = getLocalStorageData('offers', []);
-        
-        // Filtrer les offres du guide connecté
-        let guideOffers = allOffers.filter(offer => offer.guide_id === user.id);
-        
-        // Appliquer les filtres
-        if (params.status) {
-          guideOffers = guideOffers.filter(offer => offer.status === params.status);
-        }
-        
-        // Trier les offres (par date de création par défaut)
-        guideOffers.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
-        
-        resolve({
-          success: true,
-          data: guideOffers
-        });
-      } catch (error) {
-        console.error('Erreur getGuideOffers localStorage:', error);
-        resolve({
-          success: false,
-          message: 'Erreur lors du chargement des offres',
-          data: []
-        });
-      }
-    });
-  },
-
-  // ✅ Méthode pour créer une offre (localStorage)
-  createOffer: (offerData) => {
-    return new Promise((resolve) => {
-      try {
-        const user = JSON.parse(localStorage.getItem('user') || '{}');
-        const allOffers = getLocalStorageData('offers', []);
-        
-        // Créer la nouvelle offre
-        const newOffer = {
-          id: generateId(),
-          guide_id: user.id,
-          guide_name: user.fullName,
-          guide_photo: user.profilePhoto || null,
-          title: offerData.title,
-          description: offerData.description,
-          price: parseFloat(offerData.price),
-          photo_url: offerData.photo_url || null,
-          tour_date: offerData.tour_date,
-          tour_time: offerData.tour_time || null,
-          location: offerData.location,
-          city: offerData.city,
-          max_participants: parseInt(offerData.max_participants) || 10,
-          current_participants: 0,
-          languages: offerData.languages || [],
-          status: 'active',
-          likes_count: 0,
-          views_count: 0,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        };
-        
-        // Ajouter la nouvelle offre
-        allOffers.push(newOffer);
-        
-        // Sauvegarder dans localStorage
-        if (setLocalStorageData('offers', allOffers)) {
-          resolve({
-            success: true,
-            message: 'Offre créée avec succès',
-            data: newOffer
-          });
-        } else {
-          throw new Error('Erreur lors de la sauvegarde');
-        }
-        
-      } catch (error) {
-        console.error('Erreur createOffer localStorage:', error);
-        resolve({
-          success: false,
-          message: error.message || 'Erreur lors de la création de l\'offre'
-        });
-      }
-    });
-  },
-
-  // ✅ Méthode pour modifier une offre (localStorage)
-  updateOffer: (offerId, offerData) => {
-    return new Promise((resolve) => {
-      try {
-        const user = JSON.parse(localStorage.getItem('user') || '{}');
-        const allOffers = getLocalStorageData('offers', []);
-        
-        // Trouver l'index de l'offre à modifier
-        const offerIndex = allOffers.findIndex(offer => 
-          offer.id === offerId && offer.guide_id === user.id
-        );
-        
-        if (offerIndex === -1) {
-          throw new Error('Offre non trouvée ou non autorisée');
-        }
-        
-        // Mettre à jour l'offre
-        const updatedOffer = {
-          ...allOffers[offerIndex],
-          ...offerData,
-          updated_at: new Date().toISOString()
-        };
-        
-        // Si price ou max_participants sont fournis, les convertir
-        if (offerData.price !== undefined) {
-          updatedOffer.price = parseFloat(offerData.price);
-        }
-        if (offerData.max_participants !== undefined) {
-          updatedOffer.max_participants = parseInt(offerData.max_participants);
-        }
-        
-        allOffers[offerIndex] = updatedOffer;
-        
-        // Sauvegarder dans localStorage
-        if (setLocalStorageData('offers', allOffers)) {
-          resolve({
-            success: true,
-            message: 'Offre modifiée avec succès',
-            data: updatedOffer
-          });
-        } else {
-          throw new Error('Erreur lors de la sauvegarde');
-        }
-        
-      } catch (error) {
-        console.error('Erreur updateOffer localStorage:', error);
-        resolve({
-          success: false,
-          message: error.message || 'Erreur lors de la modification de l\'offre'
-        });
-      }
-    });
-  },
-
-  // ✅ Méthode pour supprimer une offre (localStorage)
-  deleteOffer: (offerId) => {
-    return new Promise((resolve) => {
-      try {
-        const user = JSON.parse(localStorage.getItem('user') || '{}');
-        const allOffers = getLocalStorageData('offers', []);
-        
-        // Trouver l'index de l'offre à supprimer
-        const offerIndex = allOffers.findIndex(offer => 
-          offer.id === offerId && offer.guide_id === user.id
-        );
-        
-        if (offerIndex === -1) {
-          throw new Error('Offre non trouvée ou non autorisée');
-        }
-        
-        // Supprimer l'offre
-        allOffers.splice(offerIndex, 1);
-        
-        // Sauvegarder dans localStorage
-        if (setLocalStorageData('offers', allOffers)) {
-          resolve({
-            success: true,
-            message: 'Offre supprimée avec succès'
-          });
-        } else {
-          throw new Error('Erreur lors de la sauvegarde');
-        }
-        
-      } catch (error) {
-        console.error('Erreur deleteOffer localStorage:', error);
-        resolve({
-          success: false,
-          message: error.message || 'Erreur lors de la suppression de l\'offre'
-        });
-      }
-    });
-  },
-
-  // ✅ Méthode pour récupérer toutes les offres (pour Explorer)
+  // ✅ SYSTÈME D'OFFRES (localStorage) - UNIFIÉ
+  
+  // Récupérer toutes les offres (pour Explorer)
   getOffers: (params = {}) => {
     return new Promise((resolve) => {
       try {
@@ -380,7 +190,218 @@ export const apiServices = {
     });
   },
 
-  // ✅ Méthode pour les favoris (localStorage)
+  // Récupérer une offre par ID
+  getOffer: (id) => {
+    return new Promise((resolve) => {
+      try {
+        const allOffers = getLocalStorageData('offers', []);
+        const offer = allOffers.find(offer => offer.id === id);
+        
+        if (offer) {
+          resolve({
+            success: true,
+            data: offer
+          });
+        } else {
+          resolve({
+            success: false,
+            message: 'Offre non trouvée'
+          });
+        }
+      } catch (error) {
+        console.error('Erreur getOffer localStorage:', error);
+        resolve({
+          success: false,
+          message: 'Erreur lors du chargement de l\'offre'
+        });
+      }
+    });
+  },
+
+  // Récupérer les offres d'un guide (Dashboard)
+  getGuideOffers: (params = {}) => {
+    return new Promise((resolve) => {
+      try {
+        const user = JSON.parse(localStorage.getItem('user') || '{}');
+        const allOffers = getLocalStorageData('offers', []);
+        
+        // Filtrer les offres du guide connecté
+        let guideOffers = allOffers.filter(offer => offer.guide_id === user.id);
+        
+        // Appliquer les filtres
+        if (params.status) {
+          guideOffers = guideOffers.filter(offer => offer.status === params.status);
+        }
+        
+        // Trier les offres (par date de création par défaut)
+        guideOffers.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+        
+        resolve({
+          success: true,
+          data: guideOffers
+        });
+      } catch (error) {
+        console.error('Erreur getGuideOffers localStorage:', error);
+        resolve({
+          success: false,
+          message: 'Erreur lors du chargement des offres',
+          data: []
+        });
+      }
+    });
+  },
+
+  // Créer une offre
+  createOffer: (offerData) => {
+    return new Promise((resolve) => {
+      try {
+        const user = JSON.parse(localStorage.getItem('user') || '{}');
+        const allOffers = getLocalStorageData('offers', []);
+        
+        // Créer la nouvelle offre
+        const newOffer = {
+          id: generateId(),
+          guide_id: user.id,
+          guide_name: user.fullName,
+          guide_photo: user.profilePhoto || null,
+          title: offerData.title,
+          description: offerData.description,
+          price: parseFloat(offerData.price),
+          photo_url: offerData.photo_url || null,
+          tour_date: offerData.tour_date,
+          tour_time: offerData.tour_time || null,
+          location: offerData.location,
+          city: offerData.city,
+          max_participants: parseInt(offerData.max_participants) || 10,
+          current_participants: 0,
+          languages: offerData.languages || [],
+          status: 'active',
+          likes_count: 0,
+          views_count: 0,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        };
+        
+        // Ajouter la nouvelle offre
+        allOffers.push(newOffer);
+        
+        // Sauvegarder dans localStorage
+        if (setLocalStorageData('offers', allOffers)) {
+          resolve({
+            success: true,
+            message: 'Offre créée avec succès',
+            data: newOffer
+          });
+        } else {
+          throw new Error('Erreur lors de la sauvegarde');
+        }
+        
+      } catch (error) {
+        console.error('Erreur createOffer localStorage:', error);
+        resolve({
+          success: false,
+          message: error.message || 'Erreur lors de la création de l\'offre'
+        });
+      }
+    });
+  },
+
+  // Modifier une offre
+  updateOffer: (offerId, offerData) => {
+    return new Promise((resolve) => {
+      try {
+        const user = JSON.parse(localStorage.getItem('user') || '{}');
+        const allOffers = getLocalStorageData('offers', []);
+        
+        // Trouver l'index de l'offre à modifier
+        const offerIndex = allOffers.findIndex(offer => 
+          offer.id === offerId && offer.guide_id === user.id
+        );
+        
+        if (offerIndex === -1) {
+          throw new Error('Offre non trouvée ou non autorisée');
+        }
+        
+        // Mettre à jour l'offre
+        const updatedOffer = {
+          ...allOffers[offerIndex],
+          ...offerData,
+          updated_at: new Date().toISOString()
+        };
+        
+        // Si price ou max_participants sont fournis, les convertir
+        if (offerData.price !== undefined) {
+          updatedOffer.price = parseFloat(offerData.price);
+        }
+        if (offerData.max_participants !== undefined) {
+          updatedOffer.max_participants = parseInt(offerData.max_participants);
+        }
+        
+        allOffers[offerIndex] = updatedOffer;
+        
+        // Sauvegarder dans localStorage
+        if (setLocalStorageData('offers', allOffers)) {
+          resolve({
+            success: true,
+            message: 'Offre modifiée avec succès',
+            data: updatedOffer
+          });
+        } else {
+          throw new Error('Erreur lors de la sauvegarde');
+        }
+        
+      } catch (error) {
+        console.error('Erreur updateOffer localStorage:', error);
+        resolve({
+          success: false,
+          message: error.message || 'Erreur lors de la modification de l\'offre'
+        });
+      }
+    });
+  },
+
+  // Supprimer une offre
+  deleteOffer: (offerId) => {
+    return new Promise((resolve) => {
+      try {
+        const user = JSON.parse(localStorage.getItem('user') || '{}');
+        const allOffers = getLocalStorageData('offers', []);
+        
+        // Trouver l'index de l'offre à supprimer
+        const offerIndex = allOffers.findIndex(offer => 
+          offer.id === offerId && offer.guide_id === user.id
+        );
+        
+        if (offerIndex === -1) {
+          throw new Error('Offre non trouvée ou non autorisée');
+        }
+        
+        // Supprimer l'offre
+        allOffers.splice(offerIndex, 1);
+        
+        // Sauvegarder dans localStorage
+        if (setLocalStorageData('offers', allOffers)) {
+          resolve({
+            success: true,
+            message: 'Offre supprimée avec succès'
+          });
+        } else {
+          throw new Error('Erreur lors de la sauvegarde');
+        }
+        
+      } catch (error) {
+        console.error('Erreur deleteOffer localStorage:', error);
+        resolve({
+          success: false,
+          message: error.message || 'Erreur lors de la suppression de l\'offre'
+        });
+      }
+    });
+  },
+
+  // ✅ SYSTÈME DE LIKES (localStorage)
+  
+  // Récupérer les offres aimées
   getLikedOffers: () => {
     return new Promise((resolve) => {
       try {
@@ -411,7 +432,7 @@ export const apiServices = {
     });
   },
 
-  // ✅ Méthode pour toggle like (localStorage)
+  // Toggle like sur une offre
   toggleLike: (offerId) => {
     return new Promise((resolve) => {
       try {
