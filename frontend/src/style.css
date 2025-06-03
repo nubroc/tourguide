@@ -6,11 +6,15 @@
   --text-primary: #222222;
   --text-secondary: #717171;
   --text-light: #ffffff;
+  --text-dark: #222222;      /* Alias pour text-primary */
+  --text-medium: #717171;    /* Alias pour text-secondary */
   --border-color: #dddddd;
   --background-light: #ffffff;
   --background-gray: #f7f7f7;
+  --background-dark: #333333; /* ✅ Nouvelle variable */
   --shadow-light: 0 2px 4px rgba(0,0,0,0.08);
   --shadow-medium: 0 4px 12px rgba(0,0,0,0.15);
+  --shadow-large: 0 8px 25px rgba(0,0,0,0.25); /* ✅ Nouvelle variable */
   --border-radius: 8px;
   --border-radius-large: 12px;
   --spacing-xs: 4px;
@@ -18,6 +22,7 @@
   --spacing-md: 16px;
   --spacing-lg: 24px;
   --spacing-xl: 32px;
+  --spacing-3xl: 64px; /* ✅ Nouvelle variable */
   
   font-family: 'Circular', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
   line-height: 1.5;

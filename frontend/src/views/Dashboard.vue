@@ -19,6 +19,7 @@
 
         <!-- Contenu du dashboard pour Guide -->
         <div v-if="user.role === 'guide'" class="dashboard-content">
+          <!-- Section Mes Offres -->
           <div class="section-header">
             <h2>Mes Offres</h2>
             <button @click="showAddOfferModal = true" class="btn btn-primary">
@@ -26,222 +27,350 @@
             </button>
           </div>
 
-          <!-- Liste des offres -->
-          <div v-if="offers.length === 0" class="empty-state">
+          <!-- Statistiques rapides -->
+          <div class="stats-grid">
+            <div class="stat-card">
+              <div class="stat-icon">📝</div>
+              <div class="stat-info">
+                <h3>{{ offers.length }}</h3>
+                <p>Offres actives</p>
+              </div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-icon">❤️</div>
+              <div class="stat-info">
+                <h3>{{ totalLikes }}</h3>
+                <p>Likes reçus</p>
+              </div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-icon">👁️</div>
+              <div class="stat-info">
+                <h3>{{ totalViews }}</h3>
+                <p>Vues totales</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Filtres des offres -->
+          <div class="offers-filters">
+            <select v-model="selectedStatus" @change="loadOffers" class="filter-select">
+              <option value="">Tous les statuts</option>
+              <option value="active">Actives</option>
+              <option value="inactive">Inactives</option>
+              <option value="completed">Terminées</option>
+            </select>
+          </div>
+
+          <!-- Loading state -->
+          <div v-if="loading" class="loading-state">
+            <div class="spinner"></div>
+            <p>Chargement de vos offres...</p>
+          </div>
+
+          <!-- Empty state -->
+          <div v-else-if="offers.length === 0" class="empty-state">
             <div class="empty-icon">📝</div>
             <h3>Aucune offre pour le moment</h3>
             <p>Commencez par créer votre première offre d'activité</p>
+            <button @click="showAddOfferModal = true" class="btn btn-primary">
+              Créer ma première offre
+            </button>
           </div>
 
+          <!-- Liste des offres -->
           <div v-else class="offers-grid">
-            <div v-for="(offer, index) in offers" :key="index" class="offer-card">
+            <div v-for="offer in offers" :key="offer.id" class="offer-card">
+              <!-- Header de l'offre -->
               <div class="offer-header">
-                <h3>{{ offer.title }}</h3>
-                <div class="offer-actions">
-                  <button @click="editOffer(index)" class="btn-icon">✏️</button>
-                  <button @click="removeOffer(index)" class="btn-icon delete">🗑️</button>
+                <div class="offer-photo">
+                  <img v-if="offer.photo_url" :src="offer.photo_url" :alt="offer.title" />
+                  <div v-else class="photo-placeholder">📸</div>
+                </div>
+                <div class="offer-status" :class="offer.status">
+                  {{ getStatusLabel(offer.status) }}
                 </div>
               </div>
-              <p class="offer-description">{{ offer.description }}</p>
-              <div class="offer-details">
-                <div class="offer-price">{{ offer.price }}€ / personne</div>
-                <div class="offer-duration">{{ offer.duration }}h</div>
+
+              <!-- Contenu de l'offre -->
+              <div class="offer-content">
+                <h3 class="offer-title">{{ offer.title }}</h3>
+                <p class="offer-description">{{ truncateText(offer.description, 100) }}</p>
+                
+                <div class="offer-details">
+                  <div class="detail-item">
+                    <span class="detail-icon">💰</span>
+                    <span class="detail-text">{{ offer.price }}€</span>
+                  </div>
+                  <div class="detail-item">
+                    <span class="detail-icon">📅</span>
+                    <span class="detail-text">{{ formatDate(offer.tour_date) }}</span>
+                  </div>
+                  <div class="detail-item">
+                    <span class="detail-icon">📍</span>
+                    <span class="detail-text">{{ offer.location }}, {{ offer.city }}</span>
+                  </div>
+                  <div class="detail-item">
+                    <span class="detail-icon">👥</span>
+                    <span class="detail-text">{{ offer.current_participants }}/{{ offer.max_participants }}</span>
+                  </div>
+                </div>
+
+                <!-- Langues -->
+                <div class="offer-languages">
+                  <span v-for="lang in offer.languages" :key="lang" class="language-tag">
+                    {{ getLanguageName(lang) }}
+                  </span>
+                </div>
+
+                <!-- Statistiques -->
+                <div class="offer-stats">
+                  <div class="stat-item">
+                    <span class="stat-icon">❤️</span>
+                    <span>{{ offer.likes_count || 0 }}</span>
+                  </div>
+                  <div class="stat-item">
+                    <span class="stat-icon">👁️</span>
+                    <span>{{ offer.views_count || 0 }}</span>
+                  </div>
+                </div>
               </div>
-              <div class="offer-languages">
-                <span v-for="lang in offer.languages" :key="lang" class="language-tag">
-                  {{ getLanguageFlag(lang) }} {{ getLanguageName(lang) }}
-                </span>
+
+              <!-- Actions -->
+              <div class="offer-actions">
+                <button @click="editOffer(offer)" class="btn-icon edit" title="Modifier">
+                  ✏️
+                </button>
+                <button @click="toggleOfferStatus(offer)" class="btn-icon toggle" :title="offer.status === 'active' ? 'Désactiver' : 'Activer'">
+                  {{ offer.status === 'active' ? '⏸️' : '▶️' }}
+                </button>
+                <button @click="deleteOffer(offer.id)" class="btn-icon delete" title="Supprimer">
+                  🗑️
+                </button>
               </div>
             </div>
           </div>
         </div>
 
         <!-- Contenu du dashboard pour Touriste -->
-        <div v-if="user.role === 'tourist'" class="dashboard-content">
-          <div class="section-header">
-            <h2>Mes Préférences de Voyage</h2>
-            <button @click="showPreferencesModal = true" class="btn btn-primary">
-              ⚙️ Modifier mes préférences
-            </button>
+        <div v-else class="dashboard-content">
+          <h2>Mes Favoris</h2>
+          
+          <!-- Loading state -->
+          <div v-if="loadingFavorites" class="loading-state">
+            <div class="spinner"></div>
+            <p>Chargement de vos favoris...</p>
           </div>
 
-          <div class="preferences-card">
-            <div v-if="!preferences.destination" class="empty-state">
-              <div class="empty-icon">🧳</div>
-              <h3>Configurez vos préférences</h3>
-              <p>Ajoutez vos préférences de voyage pour recevoir des recommandations personnalisées</p>
-            </div>
-            <div v-else class="preferences-content">
-              <div class="preference-item">
-                <strong>Destination :</strong> {{ preferences.destination }}
+          <!-- Empty state favoris -->
+          <div v-else-if="likedOffers.length === 0" class="empty-state">
+            <div class="empty-icon">❤️</div>
+            <h3>Aucun favori pour le moment</h3>
+            <p>Explorez les offres et ajoutez vos activités préférées</p>
+            <router-link to="/explorer" class="btn btn-primary">
+              Découvrir les offres
+            </router-link>
+          </div>
+
+          <!-- Liste des favoris -->
+          <div v-else class="favorites-grid">
+            <div v-for="offer in likedOffers" :key="offer.id" class="favorite-card">
+              <div class="offer-photo">
+                <img v-if="offer.photo_url" :src="offer.photo_url" :alt="offer.title" />
+                <div v-else class="photo-placeholder">📸</div>
               </div>
-              <div class="preference-item">
-                <strong>Dates :</strong> {{ preferences.startDate }} - {{ preferences.endDate }}
-              </div>
-              <div class="preference-item" v-if="preferences.interests && preferences.interests.length">
-                <strong>Centres d'intérêt :</strong>
-                <div class="interests-tags">
-                  <span v-for="interest in preferences.interests" :key="interest" class="interest-tag">
-                    {{ interest }}
-                  </span>
+              
+              <div class="offer-content">
+                <h3>{{ offer.title }}</h3>
+                <p class="guide-name">Par {{ offer.guide_name }}</p>
+                <p class="offer-description">{{ truncateText(offer.description, 80) }}</p>
+                
+                <div class="offer-details">
+                  <span class="price">{{ offer.price }}€</span>
+                  <span class="date">{{ formatDate(offer.tour_date) }}</span>
+                  <span class="location">{{ offer.city }}</span>
                 </div>
               </div>
+
+              <div class="favorite-actions">
+                <router-link :to="`/offers/${offer.id}`" class="btn btn-outline btn-sm">
+                  Voir détails
+                </router-link>
+                <button @click="removeFavorite(offer.id)" class="btn-icon delete" title="Retirer des favoris">
+                  💔
+                </button>
+              </div>
             </div>
           </div>
-        </div>
-
-        <!-- Message si pas d'utilisateur connecté -->
-        <div v-if="!user.role" class="loading-state">
-          <h2>Chargement...</h2>
-          <p>Si cette page ne se charge pas, veuillez vous connecter.</p>
-          <router-link to="/login" class="btn btn-primary">Se connecter</router-link>
         </div>
       </div>
     </div>
 
-    <!-- Modal Ajouter/Modifier Offre -->
-    <div v-if="showAddOfferModal" class="modal-overlay" @click="closeModal">
+    <!-- Modal d'ajout/modification d'offre -->
+    <div v-if="showAddOfferModal || showEditOfferModal" class="modal-overlay" @click="closeModal">
       <div class="modal-content" @click.stop>
         <div class="modal-header">
-          <h3>{{ editingOfferIndex !== null ? 'Modifier l\'offre' : 'Nouvelle offre' }}</h3>
-          <button @click="closeModal" class="modal-close">❌</button>
+          <h3>{{ isEditing ? 'Modifier l\'offre' : 'Créer une nouvelle offre' }}</h3>
+          <button @click="closeModal" class="modal-close">✕</button>
         </div>
-        
-        <form @submit.prevent="saveOffer" class="modal-form">
+
+        <form @submit.prevent="submitOffer" class="offer-form">
+          <!-- Titre et description -->
           <div class="form-group">
-            <label for="offerTitle">Titre *</label>
-            <input 
-              type="text" 
-              id="offerTitle"
-              v-model="newOffer.title" 
-              required 
-              placeholder="Nom de votre activité"
-            >
+            <label for="title">Titre de l'offre *</label>
+            <input
+              type="text"
+              id="title"
+              v-model="offerForm.title"
+              placeholder="Ex: Visite guidée du Montmartre authentique"
+              required
+              maxlength="255"
+            />
           </div>
 
           <div class="form-group">
-            <label for="offerDescription">Description *</label>
-            <textarea 
-              id="offerDescription"
-              v-model="newOffer.description" 
-              required 
-              placeholder="Décrivez votre activité..."
+            <label for="description">Description *</label>
+            <textarea
+              id="description"
+              v-model="offerForm.description"
+              placeholder="Décrivez votre offre en détail..."
+              required
               rows="4"
             ></textarea>
           </div>
 
+          <!-- Prix et participants -->
           <div class="form-grid">
             <div class="form-group">
-              <label for="offerPrice">Prix par personne (€) *</label>
-              <input 
-                type="number" 
-                id="offerPrice"
-                v-model="newOffer.price" 
-                required 
-                min="0" 
-                placeholder="50"
-              >
+              <label for="price">Prix (€) *</label>
+              <input
+                type="number"
+                id="price"
+                v-model="offerForm.price"
+                min="0"
+                step="0.01"
+                placeholder="25.00"
+                required
+              />
             </div>
-
             <div class="form-group">
-              <label for="offerDuration">Durée (heures) *</label>
-              <input 
-                type="number" 
-                id="offerDuration"
-                v-model="newOffer.duration" 
-                required 
-                min="0.5" 
-                step="0.5" 
-                placeholder="2"
-              >
+              <label for="max_participants">Participants max</label>
+              <input
+                type="number"
+                id="max_participants"
+                v-model="offerForm.max_participants"
+                min="1"
+                max="50"
+                placeholder="10"
+              />
             </div>
           </div>
 
+          <!-- Date et heure -->
+          <div class="form-grid">
+            <div class="form-group">
+              <label for="tour_date">Date du tour *</label>
+              <input
+                type="date"
+                id="tour_date"
+                v-model="offerForm.tour_date"
+                :min="minDate"
+                required
+              />
+            </div>
+            <div class="form-group">
+              <label for="tour_time">Heure du tour</label>
+              <input
+                type="time"
+                id="tour_time"
+                v-model="offerForm.tour_time"
+              />
+            </div>
+          </div>
+
+          <!-- Lieu -->
+          <div class="form-grid">
+            <div class="form-group">
+              <label for="location">Lieu de rendez-vous *</label>
+              <input
+                type="text"
+                id="location"
+                v-model="offerForm.location"
+                placeholder="Ex: Place du Tertre"
+                required
+              />
+            </div>
+            <div class="form-group">
+              <label for="city">Ville *</label>
+              <input
+                type="text"
+                id="city"
+                v-model="offerForm.city"
+                placeholder="Ex: Paris"
+                required
+              />
+            </div>
+          </div>
+
+          <!-- Photo -->
+          <div class="form-group">
+            <label for="photo">Photo de l'offre</label>
+            <div class="photo-upload">
+              <input
+                type="file"
+                id="photo"
+                @change="handlePhotoUpload"
+                accept="image/*"
+                class="photo-input"
+              />
+              <div class="photo-preview" v-if="photoPreview">
+                <img :src="photoPreview" alt="Aperçu" />
+                <button type="button" @click="removePhoto" class="remove-photo">✕</button>
+              </div>
+              <div v-else class="photo-placeholder-upload">
+                <span class="upload-icon">📸</span>
+                <p>Cliquez pour ajouter une photo</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Langues -->
           <div class="form-group">
             <label>Langues disponibles *</label>
             <div class="languages-selector">
-              <div 
-                v-for="language in availableLanguages" 
+              <div
+                v-for="language in availableLanguages"
                 :key="language.code"
                 class="language-item"
-                :class="{ active: newOffer.languages.includes(language.code) }"
-                @click="toggleOfferLanguage(language.code)"
+                :class="{ active: offerForm.languages.includes(language.code) }"
+                @click="toggleLanguage(language.code)"
               >
                 {{ language.flag }} {{ language.name }}
               </div>
             </div>
+            <p v-if="offerForm.languages.length === 0" class="error-message">
+              Sélectionnez au moins une langue
+            </p>
           </div>
 
+          <!-- Actions du formulaire -->
           <div class="modal-actions">
-            <button type="button" @click="closeModal" class="btn btn-outline">Annuler</button>
-            <button type="submit" class="btn btn-primary">
-              {{ editingOfferIndex !== null ? 'Modifier' : 'Ajouter' }}
+            <button type="button" @click="closeModal" class="btn btn-outline">
+              Annuler
+            </button>
+            <button
+              type="submit"
+              class="btn btn-primary"
+              :disabled="!isFormValid || submitting"
+            >
+              <span v-if="submitting" class="spinner-border spinner-border-sm"></span>
+              {{ submitting ? 'Sauvegarde...' : (isEditing ? 'Modifier' : 'Créer l\'offre') }}
             </button>
           </div>
-        </form>
-      </div>
-    </div>
 
-    <!-- Modal Préférences Touriste -->
-    <div v-if="showPreferencesModal" class="modal-overlay" @click="closePreferencesModal">
-      <div class="modal-content" @click.stop>
-        <div class="modal-header">
-          <h3>Mes Préférences de Voyage</h3>
-          <button @click="closePreferencesModal" class="modal-close">❌</button>
-        </div>
-        
-        <form @submit.prevent="savePreferences" class="modal-form">
-          <div class="form-group">
-            <label for="destination">Destination souhaitée *</label>
-            <input 
-              type="text" 
-              id="destination"
-              v-model="tempPreferences.destination" 
-              required 
-              placeholder="Ville ou pays que vous souhaitez visiter"
-            >
-          </div>
-
-          <div class="form-grid">
-            <div class="form-group">
-              <label for="startDate">Date d'arrivée *</label>
-              <input 
-                type="date" 
-                id="startDate"
-                v-model="tempPreferences.startDate" 
-                required
-              >
-            </div>
-
-            <div class="form-group">
-              <label for="endDate">Date de départ *</label>
-              <input 
-                type="date" 
-                id="endDate"
-                v-model="tempPreferences.endDate" 
-                required
-              >
-            </div>
-          </div>
-
-          <div class="form-group">
-            <label>Centres d'intérêt (optionnel)</label>
-            <div class="interests-selector">
-              <div 
-                v-for="interest in availableInterests" 
-                :key="interest"
-                class="interest-item"
-                :class="{ active: tempPreferences.interests.includes(interest) }"
-                @click="toggleInterest(interest)"
-              >
-                {{ interest }}
-              </div>
-            </div>
-          </div>
-
-          <div class="modal-actions">
-            <button type="button" @click="closePreferencesModal" class="btn btn-outline">Annuler</button>
-            <button type="submit" class="btn btn-primary">Sauvegarder</button>
+          <!-- Message d'erreur -->
+          <div v-if="formError" class="alert alert-danger">
+            {{ formError }}
           </div>
         </form>
       </div>
@@ -250,158 +379,398 @@
 </template>
 
 <script>
+import { apiServices } from '../services/api.js'
+
 export default {
   name: 'Dashboard',
   data() {
     return {
       user: {},
       offers: [],
-      preferences: {},
+      likedOffers: [],
+      loading: false,
+      loadingFavorites: false,
+      selectedStatus: '',
+      
+      // Modals
       showAddOfferModal: false,
-      showPreferencesModal: false,
-      editingOfferIndex: null,
-      newOffer: {
+      showEditOfferModal: false,
+      isEditing: false,
+      editingOfferId: null,
+      
+      // Formulaire d'offre
+      offerForm: {
         title: '',
         description: '',
         price: '',
-        duration: '',
+        photo_url: '',
+        tour_date: '',
+        tour_time: '',
+        location: '',
+        city: '',
+        max_participants: 10,
         languages: []
       },
-      tempPreferences: {
-        destination: '',
-        startDate: '',
-        endDate: '',
-        interests: []
-      },
+      
+      // Upload de photo
+      photoFile: null,
+      photoPreview: null,
+      
+      // États
+      submitting: false,
+      formError: null,
+      
+      // Langues disponibles
       availableLanguages: [
         { code: 'fr', name: 'Français', flag: '🇫🇷' },
         { code: 'en', name: 'English', flag: '🇺🇸' },
         { code: 'es', name: 'Español', flag: '🇪🇸' },
         { code: 'de', name: 'Deutsch', flag: '🇩🇪' },
-        { code: 'it', name: 'Italiano', flag: '🇮🇹' }
-      ],
-      availableInterests: [
-        'Culture & Histoire', 'Gastronomie', 'Nature & Randonnée', 
-        'Art & Musées', 'Vie nocturne', 'Shopping', 'Sports', 
-        'Photographie', 'Architecture', 'Plages', 'Montagne'
+        { code: 'it', name: 'Italiano', flag: '🇮🇹' },
+        { code: 'pt', name: 'Português', flag: '🇵🇹' },
+        { code: 'ar', name: 'العربية', flag: '🇸🇦' },
+        { code: 'zh', name: '中文', flag: '🇨🇳' },
+        { code: 'ja', name: '日本語', flag: '🇯🇵' }
       ]
     }
   },
+  
   computed: {
     userPhotoUrl() {
-      if (this.user.profilePhoto) {
-        return URL.createObjectURL(this.user.profilePhoto);
-      }
-      return '';
+      return this.user.profilePhoto || '/placeholder-avatar.png'
+    },
+    
+    totalLikes() {
+      return this.offers.reduce((sum, offer) => sum + (offer.likes_count || 0), 0)
+    },
+    
+    totalViews() {
+      return this.offers.reduce((sum, offer) => sum + (offer.views_count || 0), 0)
+    },
+    
+    minDate() {
+      const today = new Date()
+      return today.toISOString().split('T')[0]
+    },
+    
+    isFormValid() {
+      return this.offerForm.title.trim() &&
+             this.offerForm.description.trim() &&
+             this.offerForm.price > 0 &&
+             this.offerForm.tour_date &&
+             this.offerForm.location.trim() &&
+             this.offerForm.city.trim() &&
+             this.offerForm.languages.length > 0
     }
   },
+  
   mounted() {
-    this.loadUserData();
+    this.loadUserData()
   },
+  
   methods: {
     loadUserData() {
-      const userData = localStorage.getItem('user');
+      const userData = localStorage.getItem('user')
       if (userData) {
-        try {
-          this.user = JSON.parse(userData);
-          this.loadOffers();
-          this.loadPreferences();
-        } catch (error) {
-          console.error('Erreur lors du chargement des données utilisateur:', error);
-          this.$router.push('/login');
-        }
-      } else {
-        this.$router.push('/login');
-      }
-    },
-    loadOffers() {
-      if (this.user.email) {
-        const offers = localStorage.getItem(`offers_${this.user.email}`);
-        if (offers) {
-          this.offers = JSON.parse(offers);
+        this.user = JSON.parse(userData)
+        
+        if (this.user.role === 'guide') {
+          this.loadOffers()
+        } else {
+          this.loadLikedOffers()
         }
       }
     },
-    loadPreferences() {
-      if (this.user.email) {
-        const prefs = localStorage.getItem(`preferences_${this.user.email}`);
-        if (prefs) {
-          this.preferences = JSON.parse(prefs);
+    
+    // ✅ CORRECTION - loadOffers
+    async loadOffers() {
+      try {
+        this.loading = true
+        
+        const response = await apiServices.getGuideOffers({
+          status: this.selectedStatus
+        })
+        
+        console.log('Response loadOffers:', response)
+        
+        if (response.success) {
+          this.offers = response.data || []
+        } else {
+          console.error('Erreur API:', response.message)
+          this.offers = []
         }
+        
+      } catch (error) {
+        console.error('Erreur chargement offres:', error)
+        this.offers = []
+        
+        // Afficher l'erreur à l'utilisateur
+        alert(`Erreur: ${error.response?.data?.message || error.message}`)
+      } finally {
+        this.loading = false
       }
     },
-    saveOffer() {
-      if (this.editingOfferIndex !== null) {
-        this.offers[this.editingOfferIndex] = { ...this.newOffer };
-      } else {
-        this.offers.push({ ...this.newOffer });
+    
+    // ✅ CORRECTION - loadLikedOffers
+    async loadLikedOffers() {
+      try {
+        this.loadingFavorites = true
+        
+        const response = await apiServices.getLikedOffers()
+        
+        console.log('Response loadLikedOffers:', response)
+        
+        if (response.success) {
+          this.likedOffers = response.data?.offers || []
+        } else {
+          console.error('Erreur API favoris:', response.message)
+          this.likedOffers = []
+        }
+        
+      } catch (error) {
+        console.error('Erreur chargement favoris:', error)
+        this.likedOffers = []
+      } finally {
+        this.loadingFavorites = false
       }
-      localStorage.setItem(`offers_${this.user.email}`, JSON.stringify(this.offers));
-      this.closeModal();
     },
-    editOffer(index) {
-      this.editingOfferIndex = index;
-      this.newOffer = { ...this.offers[index] };
-      this.showAddOfferModal = true;
+    
+    // Gestion du formulaire d'offre
+    openAddOfferModal() {
+      this.resetForm()
+      this.showAddOfferModal = true
+      this.isEditing = false
     },
-    removeOffer(index) {
-      if (confirm('Êtes-vous sûr de vouloir supprimer cette offre ?')) {
-        this.offers.splice(index, 1);
-        localStorage.setItem(`offers_${this.user.email}`, JSON.stringify(this.offers));
+    
+    editOffer(offer) {
+      this.isEditing = true
+      this.editingOfferId = offer.id
+      this.showEditOfferModal = true
+      
+      // Pré-remplir le formulaire
+      this.offerForm = {
+        title: offer.title,
+        description: offer.description,
+        price: offer.price,
+        photo_url: offer.photo_url,
+        tour_date: offer.tour_date,
+        tour_time: offer.tour_time,
+        location: offer.location,
+        city: offer.city,
+        max_participants: offer.max_participants,
+        languages: [...(offer.languages || [])]
+      }
+      
+      if (offer.photo_url) {
+        this.photoPreview = offer.photo_url
       }
     },
+    
     closeModal() {
-      this.showAddOfferModal = false;
-      this.editingOfferIndex = null;
-      this.newOffer = {
+      this.showAddOfferModal = false
+      this.showEditOfferModal = false
+      this.resetForm()
+    },
+    
+    resetForm() {
+      this.offerForm = {
         title: '',
         description: '',
         price: '',
-        duration: '',
+        photo_url: '',
+        tour_date: '',
+        tour_time: '',
+        location: '',
+        city: '',
+        max_participants: 10,
         languages: []
-      };
+      }
+      this.photoFile = null
+      this.photoPreview = null
+      this.formError = null
+      this.isEditing = false
+      this.editingOfferId = null
     },
-    savePreferences() {
-      this.preferences = { ...this.tempPreferences };
-      localStorage.setItem(`preferences_${this.user.email}`, JSON.stringify(this.preferences));
-      this.closePreferencesModal();
-    },
-    closePreferencesModal() {
-      this.showPreferencesModal = false;
-      this.tempPreferences = {
-        destination: this.preferences.destination || '',
-        startDate: this.preferences.startDate || '',
-        endDate: this.preferences.endDate || '',
-        interests: [...(this.preferences.interests || [])]
-      };
-    },
-    toggleOfferLanguage(languageCode) {
-      const index = this.newOffer.languages.indexOf(languageCode);
-      if (index > -1) {
-        this.newOffer.languages.splice(index, 1);
-      } else {
-        this.newOffer.languages.push(languageCode);
+    
+    // ✅ CORRECTION - submitOffer
+    async submitOffer() {
+      if (!this.isFormValid) return
+      
+      try {
+        this.submitting = true
+        this.formError = null
+        
+        console.log('Données du formulaire:', this.offerForm)
+        
+        // Upload de la photo si nécessaire
+        if (this.photoFile) {
+          const photoUrl = await this.uploadPhoto()
+          this.offerForm.photo_url = photoUrl
+        }
+        
+        let response
+        if (this.isEditing) {
+          console.log('Modification offre:', this.editingOfferId)
+          response = await apiServices.updateOffer(this.editingOfferId, this.offerForm)
+        } else {
+          console.log('Création nouvelle offre')
+          response = await apiServices.createOffer(this.offerForm)
+        }
+        
+        console.log('Response submitOffer:', response)
+        
+        if (response.success) {
+          this.closeModal()
+          this.loadOffers() // Recharger la liste
+          
+          // Notification de succès
+          alert(this.isEditing ? 'Offre modifiée avec succès' : 'Offre créée avec succès')
+        } else {
+          this.formError = response.message || 'Erreur lors de la sauvegarde'
+        }
+        
+      } catch (error) {
+        console.error('Erreur soumission offre:', error)
+        this.formError = error.response?.data?.message || 'Erreur lors de la sauvegarde'
+      } finally {
+        this.submitting = false
       }
     },
-    toggleInterest(interest) {
-      const index = this.tempPreferences.interests.indexOf(interest);
-      if (index > -1) {
-        this.tempPreferences.interests.splice(index, 1);
-      } else {
-        this.tempPreferences.interests.push(interest);
+    
+    async uploadPhoto() {
+      // Simulation d'upload - à remplacer par votre service d'upload
+      return new Promise((resolve) => {
+        const reader = new FileReader()
+        reader.onload = (e) => {
+          resolve(e.target.result)
+        }
+        reader.readAsDataURL(this.photoFile)
+      })
+    },
+    
+    handlePhotoUpload(event) {
+      const file = event.target.files[0]
+      if (file) {
+        // Validation du fichier
+        if (file.size > 5 * 1024 * 1024) { // 5MB max
+          alert('La photo ne doit pas dépasser 5MB')
+          return
+        }
+        
+        if (!file.type.startsWith('image/')) {
+          alert('Veuillez sélectionner une image')
+          return
+        }
+        
+        this.photoFile = file
+        
+        // Créer l'aperçu
+        const reader = new FileReader()
+        reader.onload = (e) => {
+          this.photoPreview = e.target.result
+        }
+        reader.readAsDataURL(file)
       }
     },
-    getLanguageFlag(code) {
-      const lang = this.availableLanguages.find(l => l.code === code);
-      return lang ? lang.flag : '';
+    
+    removePhoto() {
+      this.photoFile = null
+      this.photoPreview = null
+      this.offerForm.photo_url = ''
     },
+    
+    toggleLanguage(languageCode) {
+      const index = this.offerForm.languages.indexOf(languageCode)
+      if (index > -1) {
+        this.offerForm.languages.splice(index, 1)
+      } else {
+        this.offerForm.languages.push(languageCode)
+      }
+    },
+    
+    async toggleOfferStatus(offer) {
+      try {
+        const newStatus = offer.status === 'active' ? 'inactive' : 'active'
+        
+        const response = await apiServices.updateOffer(offer.id, {
+          status: newStatus
+        })
+        
+        if (response.success) {
+          offer.status = newStatus
+          alert(`Offre ${newStatus === 'active' ? 'activée' : 'désactivée'}`)
+        }
+      } catch (error) {
+        console.error('Erreur changement statut:', error)
+        alert('Erreur lors du changement de statut')
+      }
+    },
+    
+    async deleteOffer(offerId) {
+      if (!confirm('Êtes-vous sûr de vouloir supprimer cette offre ?')) return
+      
+      try {
+        const response = await apiServices.deleteOffer(offerId)
+        
+        if (response.success) {
+          this.offers = this.offers.filter(offer => offer.id !== offerId)
+          alert('Offre supprimée avec succès')
+        }
+      } catch (error) {
+        console.error('Erreur suppression:', error)
+        alert('Erreur lors de la suppression')
+      }
+    },
+    
+    async removeFavorite(offerId) {
+      try {
+        const response = await apiServices.toggleLike(offerId)
+        
+        if (response.success) {
+          this.likedOffers = this.likedOffers.filter(offer => offer.id !== offerId)
+          alert('Retiré des favoris')
+        }
+      } catch (error) {
+        console.error('Erreur retrait favori:', error)
+      }
+    },
+    
+    // Utilitaires
+    truncateText(text, length) {
+      if (!text) return ''
+      return text.length > length ? text.substring(0, length) + '...' : text
+    },
+    
+    formatDate(dateString) {
+      if (!dateString) return ''
+      const date = new Date(dateString)
+      return date.toLocaleDateString('fr-FR', {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+      })
+    },
+    
     getLanguageName(code) {
-      const lang = this.availableLanguages.find(l => l.code === code);
-      return lang ? lang.name : code;
+      const lang = this.availableLanguages.find(l => l.code === code)
+      return lang ? `${lang.flag} ${lang.name}` : code
     },
+    
+    getStatusLabel(status) {
+      const labels = {
+        active: 'Active',
+        inactive: 'Inactive',
+        completed: 'Terminée',
+        cancelled: 'Annulée'
+      }
+      return labels[status] || status
+    },
+    
     logout() {
-      localStorage.removeItem('user');
-      this.$router.push('/login');
+      localStorage.removeItem('user')
+      localStorage.removeItem('authToken')
+      this.$router.push('/login')
     }
   }
 }
@@ -410,42 +779,46 @@ export default {
 <style scoped>
 .page {
   min-height: calc(100vh - 80px);
-  padding: 20px;
-  background: #f8f9fa;
+  padding: var(--spacing-lg);
+  background: var(--background-gray);
 }
 
 .container {
   width: 100%;
-  max-width: 1200px;
+  max-width: 1400px;
   margin: 0 auto;
 }
 
 .dashboard-container {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 40px 20px;
+  padding: var(--spacing-xl);
 }
 
+/* Header */
 .dashboard-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 40px;
-  padding-bottom: 20px;
-  border-bottom: 1px solid #e0e0e0;
+  margin-bottom: var(--spacing-xxl);
+  padding-bottom: var(--spacing-lg);
+  border-bottom: 2px solid var(--border-light);
+  background: white;
+  padding: var(--spacing-xl);
+  border-radius: var(--border-radius-large);
+  box-shadow: var(--shadow-light);
 }
 
 .user-info {
   display: flex;
   align-items: center;
-  gap: 20px;
+  gap: var(--spacing-lg);
 }
 
 .user-avatar {
-  width: 60px;
-  height: 60px;
+  width: 70px;
+  height: 70px;
   border-radius: 50%;
   overflow: hidden;
+  border: 3px solid var(--primary-color);
 }
 
 .user-avatar img {
@@ -457,222 +830,350 @@ export default {
 .avatar-placeholder {
   width: 100%;
   height: 100%;
-  background: #007bff;
+  background: linear-gradient(135deg, var(--primary-color), var(--accent-color));
   color: white;
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 1.5rem;
-  font-weight: bold;
+  font-weight: var(--font-weight-bold);
 }
 
 .user-details h1 {
-  margin: 0 0 5px 0;
-  color: #333;
+  margin: 0 0 var(--spacing-xs) 0;
+  color: var(--text-primary);
+  font-size: 1.75rem;
+  font-weight: var(--font-weight-bold);
 }
 
 .user-role {
-  color: #666;
-  font-size: 0.9rem;
+  color: var(--text-secondary);
+  font-size: 1rem;
   margin: 0;
+  font-weight: var(--font-weight-medium);
 }
 
+/* Section Header */
 .section-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 30px;
+  margin-bottom: var(--spacing-xl);
 }
 
 .section-header h2 {
   margin: 0;
-  color: #333;
+  color: var(--text-primary);
+  font-size: 1.5rem;
+  font-weight: var(--font-weight-semibold);
 }
 
-.btn {
-  padding: 10px 20px;
-  border-radius: 5px;
-  border: none;
-  cursor: pointer;
-  font-size: 0.9rem;
-  text-decoration: none;
-  display: inline-block;
-  transition: all 0.2s ease;
+/* Statistiques */
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: var(--spacing-lg);
+  margin-bottom: var(--spacing-xl);
 }
 
-.btn-primary {
-  background: #007bff;
-  color: white;
-}
-
-.btn-primary:hover {
-  background: #0056b3;
-}
-
-.btn-outline {
-  background: transparent;
-  color: #007bff;
-  border: 1px solid #007bff;
-}
-
-.btn-outline:hover {
-  background: #007bff;
-  color: white;
-}
-
-.empty-state {
-  text-align: center;
-  padding: 60px 20px;
+.stat-card {
   background: white;
-  border-radius: 10px;
-  border: 2px dashed #ddd;
+  padding: var(--spacing-lg);
+  border-radius: var(--border-radius-large);
+  box-shadow: var(--shadow-light);
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.stat-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-medium);
+}
+
+.stat-icon {
+  font-size: 2rem;
+  opacity: 0.8;
+}
+
+.stat-info h3 {
+  margin: 0 0 var(--spacing-xs) 0;
+  font-size: 1.5rem;
+  font-weight: var(--font-weight-bold);
+  color: var(--primary-color);
+}
+
+.stat-info p {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+}
+
+/* Filtres */
+.offers-filters {
+  margin-bottom: var(--spacing-lg);
+}
+
+.filter-select {
+  padding: var(--spacing-sm) var(--spacing-md);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius);
+  background: white;
+  font-size: 0.9rem;
+}
+
+/* Loading & Empty States */
+.loading-state, .empty-state {
+  text-align: center;
+  padding: var(--spacing-xxl);
+  background: white;
+  border-radius: var(--border-radius-large);
+  box-shadow: var(--shadow-light);
+}
+
+.spinner {
+  width: 40px;
+  height: 40px;
+  border: 4px solid var(--border-light);
+  border-top: 4px solid var(--primary-color);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin: 0 auto var(--spacing-md);
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
 }
 
 .empty-icon {
-  font-size: 3rem;
-  margin-bottom: 20px;
+  font-size: 4rem;
+  margin-bottom: var(--spacing-lg);
+  opacity: 0.5;
 }
 
 .empty-state h3 {
-  margin: 0 0 10px 0;
-  color: #333;
+  margin-bottom: var(--spacing-md);
+  color: var(--text-secondary);
 }
 
 .empty-state p {
-  color: #666;
-  margin: 0;
+  color: var(--text-light);
+  margin-bottom: var(--spacing-xl);
 }
 
-.loading-state {
-  text-align: center;
-  padding: 60px 20px;
-}
-
-.offers-grid {
+/* Grilles d'offres */
+.offers-grid, .favorites-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-  gap: 20px;
+  grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+  gap: var(--spacing-lg);
 }
 
-.offer-card {
+/* Cards d'offres */
+.offer-card, .favorite-card {
   background: white;
-  border: 1px solid #e0e0e0;
-  border-radius: 8px;
-  padding: 20px;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  border-radius: var(--border-radius-large);
+  box-shadow: var(--shadow-light);
+  overflow: hidden;
+  transition: all 0.3s ease;
+  position: relative;
+}
+
+.offer-card:hover, .favorite-card:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--shadow-large);
 }
 
 .offer-header {
+  position: relative;
+  height: 200px;
+  overflow: hidden;
+}
+
+.offer-photo, .offer-photo {
+  width: 100%;
+  height: 100%;
+}
+
+.offer-photo img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.photo-placeholder {
+  width: 100%;
+  height: 100%;
+  background: var(--background-gray);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 3rem;
+  color: var(--text-light);
+}
+
+.offer-status {
+  position: absolute;
+  top: var(--spacing-md);
+  right: var(--spacing-md);
+  padding: var(--spacing-xs) var(--spacing-sm);
+  border-radius: var(--border-radius-small);
+  font-size: 0.8rem;
+  font-weight: var(--font-weight-semibold);
+  text-transform: uppercase;
+}
+
+.offer-status.active {
+  background: var(--success-color);
+  color: white;
+}
+
+.offer-status.inactive {
+  background: var(--text-light);
+  color: white;
+}
+
+.offer-status.completed {
+  background: var(--secondary-color);
+  color: white;
+}
+
+.offer-content {
+  padding: var(--spacing-lg);
+}
+
+.offer-title {
+  margin: 0 0 var(--spacing-sm) 0;
+  font-size: 1.2rem;
+  font-weight: var(--font-weight-semibold);
+  color: var(--text-primary);
+  line-height: 1.3;
+}
+
+.offer-description {
+  margin: 0 0 var(--spacing-md) 0;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  font-size: 0.9rem;
+}
+
+.guide-name {
+  margin: 0 0 var(--spacing-sm) 0;
+  color: var(--primary-color);
+  font-weight: var(--font-weight-medium);
+  font-size: 0.9rem;
+}
+
+/* Détails des offres */
+.offer-details {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+  margin-bottom: var(--spacing-md);
+}
+
+.detail-item {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  font-size: 0.9rem;
+}
+
+.detail-icon {
+  width: 16px;
+  text-align: center;
+}
+
+.detail-text {
+  color: var(--text-secondary);
+}
+
+/* Langues */
+.offer-languages {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-xs);
+  margin-bottom: var(--spacing-md);
+}
+
+.language-tag {
+  background: var(--background-gray);
+  color: var(--text-secondary);
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 0.8rem;
+  font-weight: var(--font-weight-medium);
+}
+
+/* Statistiques des offres */
+.offer-stats {
+  display: flex;
+  gap: var(--spacing-md);
+  margin-bottom: var(--spacing-md);
+}
+
+.stat-item {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+}
+
+.stat-icon {
+  font-size: 0.8rem;
+}
+
+/* Actions */
+.offer-actions, .favorite-actions {
   display: flex;
   justify-content: space-between;
-  align-items: flex-start;
-  margin-bottom: 15px;
-}
-
-.offer-header h3 {
-  margin: 0;
-  color: #333;
-}
-
-.offer-actions {
-  display: flex;
-  gap: 10px;
+  align-items: center;
+  padding: var(--spacing-md) var(--spacing-lg);
+  border-top: 1px solid var(--border-light);
+  background: var(--background-gray);
 }
 
 .btn-icon {
   background: none;
   border: none;
+  font-size: 1.2rem;
   cursor: pointer;
-  padding: 5px;
-  border-radius: 3px;
-  font-size: 1rem;
+  padding: var(--spacing-xs);
+  border-radius: var(--border-radius-small);
+  transition: background-color 0.2s ease;
 }
 
 .btn-icon:hover {
-  background: #f0f0f0;
+  background: rgba(0, 0, 0, 0.1);
 }
 
 .btn-icon.delete:hover {
-  background: #ffebee;
+  background: rgba(193, 53, 21, 0.1);
 }
 
-.offer-description {
-  color: #666;
-  margin-bottom: 15px;
-  line-height: 1.5;
-}
-
-.offer-details {
-  display: flex;
-  justify-content: space-between;
-  margin-bottom: 15px;
-}
-
-.offer-price {
-  font-weight: bold;
-  color: #007bff;
-}
-
-.offer-languages {
-  display: flex;
-  gap: 5px;
-  flex-wrap: wrap;
-}
-
-.language-tag {
-  background: #e3f2fd;
-  color: #007bff;
-  padding: 3px 8px;
-  border-radius: 3px;
-  font-size: 0.8rem;
-}
-
-.preferences-card {
-  background: white;
-  border: 1px solid #e0e0e0;
-  border-radius: 8px;
-  padding: 20px;
-}
-
-.preference-item {
-  margin-bottom: 15px;
-}
-
-.interests-tags {
-  display: flex;
-  gap: 5px;
-  flex-wrap: wrap;
-  margin-top: 10px;
-}
-
-.interest-tag {
-  background: #f0f0f0;
-  color: #333;
-  padding: 3px 8px;
-  border-radius: 3px;
-  font-size: 0.8rem;
-}
-
-/* Modal Styles */
+/* Modal */
 .modal-overlay {
   position: fixed;
   top: 0;
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
+  background: rgba(0, 0, 0, 0.7);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 1000;
+  padding: var(--spacing-lg);
 }
 
 .modal-content {
   background: white;
-  border-radius: 10px;
-  padding: 30px;
-  max-width: 600px;
-  width: 90%;
+  border-radius: var(--border-radius-large);
+  box-shadow: var(--shadow-large);
+  width: 100%;
+  max-width: 700px;
   max-height: 90vh;
   overflow-y: auto;
 }
@@ -681,110 +1182,255 @@ export default {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 20px;
-  padding-bottom: 15px;
-  border-bottom: 1px solid #e0e0e0;
+  padding: var(--spacing-lg);
+  border-bottom: 1px solid var(--border-light);
 }
 
 .modal-header h3 {
   margin: 0;
+  font-size: 1.5rem;
+  font-weight: var(--font-weight-semibold);
 }
 
 .modal-close {
   background: none;
   border: none;
+  font-size: 1.5rem;
   cursor: pointer;
-  font-size: 1.2rem;
+  color: var(--text-secondary);
+  padding: var(--spacing-xs);
+}
+
+.modal-close:hover {
+  color: var(--text-primary);
+}
+
+/* Formulaire */
+.offer-form {
+  padding: var(--spacing-lg);
 }
 
 .form-group {
-  margin-bottom: 20px;
+  margin-bottom: var(--spacing-lg);
 }
 
 .form-group label {
   display: block;
-  margin-bottom: 5px;
-  font-weight: 500;
-  color: #333;
+  margin-bottom: var(--spacing-sm);
+  font-weight: var(--font-weight-semibold);
+  color: var(--text-primary);
 }
 
 .form-group input,
-.form-group textarea {
+.form-group textarea,
+.form-group select {
   width: 100%;
-  padding: 10px;
-  border: 1px solid #ddd;
-  border-radius: 5px;
+  padding: var(--spacing-md);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius);
   font-size: 1rem;
+  font-family: inherit;
+  transition: border-color 0.2s ease;
 }
 
-.form-group textarea {
-  resize: vertical;
+.form-group input:focus,
+.form-group textarea:focus,
+.form-group select:focus {
+  outline: none;
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 2px rgba(255, 90, 95, 0.1);
 }
 
 .form-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 20px;
+  gap: var(--spacing-lg);
 }
 
+/* Upload de photo */
+.photo-upload {
+  border: 2px dashed var(--border-color);
+  border-radius: var(--border-radius);
+  padding: var(--spacing-lg);
+  text-align: center;
+  cursor: pointer;
+  transition: border-color 0.2s ease;
+  position: relative;
+}
+
+.photo-upload:hover {
+  border-color: var(--primary-color);
+}
+
+.photo-input {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.photo-preview {
+  position: relative;
+  max-width: 200px;
+  margin: 0 auto;
+}
+
+.photo-preview img {
+  width: 100%;
+  height: auto;
+  border-radius: var(--border-radius);
+}
+
+.remove-photo {
+  position: absolute;
+  top: -10px;
+  right: -10px;
+  background: var(--error-color);
+  color: white;
+  border: none;
+  border-radius: 50%;
+  width: 24px;
+  height: 24px;
+  cursor: pointer;
+  font-size: 0.8rem;
+}
+
+.photo-placeholder-upload {
+  padding: var(--spacing-xl);
+}
+
+.upload-icon {
+  font-size: 3rem;
+  margin-bottom: var(--spacing-md);
+  opacity: 0.5;
+}
+
+/* Sélecteur de langues */
+.languages-selector {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-sm);
+  margin-top: var(--spacing-sm);
+}
+
+.language-item {
+  padding: var(--spacing-sm) var(--spacing-md);
+  border: 1px solid var(--border-color);
+  border-radius: 20px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: all 0.2s ease;
+  background: white;
+  user-select: none;
+}
+
+.language-item:hover {
+  border-color: var(--primary-color);
+  background: rgba(255, 90, 95, 0.05);
+}
+
+.language-item.active {
+  background: var(--primary-color);
+  color: white;
+  border-color: var(--primary-color);
+}
+
+/* Actions du modal */
 .modal-actions {
   display: flex;
-  gap: 15px;
   justify-content: flex-end;
-  margin-top: 30px;
-  padding-top: 20px;
-  border-top: 1px solid #e0e0e0;
+  gap: var(--spacing-md);
+  margin-top: var(--spacing-xl);
+  padding-top: var(--spacing-lg);
+  border-top: 1px solid var(--border-light);
 }
 
-.languages-selector,
-.interests-selector {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-  gap: 10px;
-  margin-top: 10px;
+/* Messages d'erreur */
+.error-message {
+  color: var(--error-color);
+  font-size: 0.85rem;
+  margin-top: var(--spacing-xs);
 }
 
-.language-item,
-.interest-item {
-  padding: 10px;
-  border: 1px solid #ddd;
-  border-radius: 5px;
-  cursor: pointer;
-  text-align: center;
-  transition: all 0.2s ease;
+.alert {
+  padding: var(--spacing-md);
+  border-radius: var(--border-radius);
+  margin-top: var(--spacing-lg);
 }
 
-.language-item:hover,
-.interest-item:hover {
-  background: #f0f0f0;
+.alert-danger {
+  background: rgba(193, 53, 21, 0.1);
+  color: var(--error-color);
+  border: 1px solid rgba(193, 53, 21, 0.2);
 }
 
-.language-item.active,
-.interest-item.active {
-  background: #007bff;
-  color: white;
-  border-color: #007bff;
+/* Spinner */
+.spinner-border {
+  display: inline-block;
+  width: 1rem;
+  height: 1rem;
+  border: 0.125em solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  animation: spinner-border 0.75s linear infinite;
+  margin-right: var(--spacing-sm);
 }
 
+.spinner-border-sm {
+  width: 0.875rem;
+  height: 0.875rem;
+}
+
+@keyframes spinner-border {
+  to { transform: rotate(360deg); }
+}
+
+/* Responsive */
 @media (max-width: 768px) {
+  .dashboard-container {
+    padding: var(--spacing-md);
+  }
+  
   .dashboard-header {
     flex-direction: column;
-    gap: 20px;
+    gap: var(--spacing-lg);
     text-align: center;
   }
-
-  .section-header {
-    flex-direction: column;
-    gap: 15px;
-    text-align: center;
-  }
-
-  .offers-grid {
+  
+  .stats-grid {
     grid-template-columns: 1fr;
   }
-
+  
+  .offers-grid, .favorites-grid {
+    grid-template-columns: 1fr;
+  }
+  
   .form-grid {
     grid-template-columns: 1fr;
+  }
+  
+  .modal-content {
+    margin: var(--spacing-md);
+    max-width: calc(100vw - 2 * var(--spacing-md));
+  }
+}
+
+@media (max-width: 480px) {
+  .offer-actions {
+    flex-direction: column;
+    gap: var(--spacing-sm);
+  }
+  
+  .languages-selector {
+    gap: var(--spacing-xs);
+  }
+  
+  .language-item {
+    font-size: 0.8rem;
+    padding: var(--spacing-xs) var(--spacing-sm);
   }
 }
 </style>

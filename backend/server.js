@@ -4,13 +4,12 @@ import helmet from 'helmet'
 import rateLimit from 'express-rate-limit'
 import dotenv from 'dotenv'
 
-// Routes
+// Import des routes
 import authRoutes from './routes/auth.js'
-import activityRoutes from './routes/activities.js'
 import sessionRoutes from './routes/sessions.js'
-
-// Database
-import './config/database.js'
+import offerRoutes from './routes/offers.js'
+import likesRoutes from './routes/likes.js'
+import guideRoutes from './routes/guide-offers.js'
 
 dotenv.config()
 
@@ -37,8 +36,10 @@ app.use(express.urlencoded({ extended: true }))
 
 // Routes
 app.use('/api/auth', authRoutes)
-app.use('/api/activities', activityRoutes)
 app.use('/api/sessions', sessionRoutes)
+app.use('/api/offers', offerRoutes)        // ✅ Système principal
+app.use('/api', likesRoutes)               // ✅ Routes likes
+app.use('/api/guide', guideRoutes)         // ✅ Routes guide
 
 // Route de test
 app.get('/api/health', (req, res) => {
@@ -58,12 +59,11 @@ app.use((error, req, res, next) => {
   console.error(error.stack)
   res.status(500).json({
     success: false,
-    message: 'Something went wrong!'
+    message: 'Erreur serveur interne'
   })
 })
 
 app.listen(PORT, () => {
-  console.log(`🚀 Server running on port ${PORT}`)
-  console.log(`📍 API available at http://localhost:${PORT}/api`)
-  console.log(`🗄️ Using MySQL database`)
+  console.log(`🚀 Serveur TourGuide démarré sur le port ${PORT}`)
+  console.log(`📍 API disponible sur http://localhost:${PORT}/api`)
 })
