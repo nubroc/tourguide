@@ -1,11 +1,15 @@
 import express from 'express'
-import { createSession, getUserSessions, updateSessionStatus } from '../controllers/sessionController.js'
-import { authenticate } from '../middleware/auth.js'
+import pool from '../config/database.js'
 
 const router = express.Router()
 
-router.post('/', authenticate, createSession)
-router.get('/user', authenticate, getUserSessions)
-router.patch('/:id/status', authenticate, updateSessionStatus)
+// Placeholder pour les sessions
+router.get('/', (req, res) => {
+  res.json({
+    success: true,
+    data: [],
+    message: 'Sessions endpoint - à implémenter'
+  })
+})
 
 export default router

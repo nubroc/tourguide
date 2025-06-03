@@ -117,7 +117,8 @@
 
             <!-- Bouton de soumission -->
             <div class="form-submit" v-if="formData.role">
-              <button type="submit" class="btn btn-primary" :disabled="!isFormValid">
+              <button type="submit" class="btn btn-primary" :disabled="!isFormValid || loading">
+                <span v-if="loading" class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
                 Créer mon compte
               </button>
               
@@ -125,6 +126,10 @@
                 <p>Déjà un compte ? 
                   <router-link to="/login">Connectez-vous</router-link>
                 </p>
+              </div>
+
+              <div v-if="error" class="alert alert-danger mt-3">
+                {{ error }}
               </div>
             </div>
           </form>
@@ -135,11 +140,15 @@
 </template>
 
 <script>
+import { apiServices } from '../services/api.js'
+
 export default {
   name: 'Signup',
   data() {
     return {
       showPassword: false,
+      loading: false,
+      error: null,
       formData: {
         role: '',
         fullName: '',
@@ -190,14 +199,40 @@ export default {
         this.formData.profilePhoto = file;
       }
     },
-    handleSubmit() {
-      if (this.isFormValid) {
-        console.log('Données du formulaire:', this.formData);
-        // Ici vous ajouterez l'appel API pour créer le compte
-        localStorage.setItem('user', JSON.stringify(this.formData));
-        this.$router.push('/dashboard');
+    async handleSubmit() {
+      if (!this.isFormValid) return
+      
+      this.loading = true
+      this.error = null
+      
+      try {
+        const response = await apiServices.register({
+          email: this.formData.email,
+          password: this.formData.password,
+          fullName: this.formData.fullName,
+          role: this.formData.role,
+          languages: this.formData.languages
+        })
+
+        if (response.success) {
+          // Sauvegarder les données utilisateur et token
+          localStorage.setItem('user', JSON.stringify(response.data.user))
+          localStorage.setItem('authToken', response.data.token)
+          
+          console.log('✅ Inscription réussie')
+          this.$router.push('/dashboard')
+        } else {
+          this.error = response.message || 'Erreur lors de l\'inscription'
+        }
+
+      } catch (error) {
+        console.error('❌ Erreur inscription:', error)
+        this.error = error.response?.data?.message || 'Erreur lors de l\'inscription'
+      } finally {
+        this.loading = false
       }
     }
   }
 }
 </script>
+

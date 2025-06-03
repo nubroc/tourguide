@@ -9,6 +9,10 @@
         
         <div class="auth-content">
           <form @submit.prevent="handleLogin" class="auth-form">
+            <div v-if="error" class="error-message">
+              {{ error }}
+            </div>
+
             <div class="form-group">
               <label for="email">Email</label>
               <input 
@@ -43,7 +47,9 @@
               </label>
             </div>
 
-            <button type="submit" class="btn btn-primary">Se connecter</button>
+            <button type="submit" class="btn btn-primary" :disabled="loading">
+              {{ loading ? 'Connexion...' : 'Se connecter' }}
+            </button>
           </form>
           
           <div class="auth-links">
@@ -59,11 +65,15 @@
 </template>
 
 <script>
+import { apiServices } from '../services/api.js'
+
 export default {
   name: 'Login',
   data() {
     return {
       showPassword: false,
+      loading: false,
+      error: null,
       loginData: {
         email: '',
         password: '',
@@ -72,34 +82,36 @@ export default {
     }
   },
   methods: {
-    handleLogin() {
-      console.log('Données de connexion:', this.loginData);
+    async handleLogin() {
+      this.loading = true
+      this.error = null
       
-      // Vérifier si un utilisateur avec cet email existe
-      const userData = localStorage.getItem('user');
-      if (userData) {
-        const user = JSON.parse(userData);
-        
-        // Vérifier les identifiants
-        if (user.email === this.loginData.email && user.password === this.loginData.password) {
-          // Connexion réussie
-          console.log('Connexion réussie !');
+      try {
+        const response = await apiServices.login({
+          email: this.loginData.email,
+          password: this.loginData.password
+        })
+
+        if (response.success) {
+          // Sauvegarder les données utilisateur et token
+          localStorage.setItem('user', JSON.stringify(response.data.user))
+          localStorage.setItem('authToken', response.data.token)
           
-          // Optionnel : gérer "Se souvenir de moi"
           if (this.loginData.rememberMe) {
-            localStorage.setItem('rememberMe', 'true');
+            localStorage.setItem('rememberMe', 'true')
           }
           
-          // Rediriger vers le dashboard
-          this.$router.push('/dashboard');
+          console.log('✅ Connexion réussie')
+          this.$router.push('/dashboard')
         } else {
-          // Identifiants incorrects
-          alert('Email ou mot de passe incorrect');
+          this.error = response.message || 'Erreur de connexion'
         }
-      } else {
-        // Aucun utilisateur trouvé
-        alert('Aucun compte trouvé avec cet email. Veuillez vous inscrire.');
-        this.$router.push('/signup');
+
+      } catch (error) {
+        console.error('❌ Erreur login:', error)
+        this.error = error.response?.data?.message || 'Erreur de connexion'
+      } finally {
+        this.loading = false
       }
     }
   }
@@ -175,6 +187,16 @@ export default {
 
 .auth-links p {
   margin-bottom: var(--spacing-sm);
+}
+
+.error-message {
+  background-color: #f8d7da;
+  border: 1px solid #f5c6cb;
+  color: #721c24;
+  padding: 10px;
+  border-radius: 5px;
+  margin-bottom: 20px;
+  text-align: center;
 }
 
 /* Responsive */
