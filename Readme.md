@@ -1,6 +1,4 @@
-nubroc: fait moi le readme qui explique le principe de l'app
-
-Workspace: Collecting workspace information# TourGuide - Plateforme de Tourisme Local
+# TourGuide - Plateforme de Tourisme Local
 
 ## 📖 Principe de l'application
 
